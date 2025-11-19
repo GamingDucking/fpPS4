@@ -1,13 +1,7 @@
 
-name: Main CI
+name: fpps4_kern_build
 
 on:
-  push:
-    branches:
-      - '*'
-    tags:        
-      - '*'
-
   workflow_dispatch:
 
 jobs:
@@ -24,30 +18,24 @@ jobs:
         lazarus-version: "3.6"
         with-cache: true
 
+    - name: Download
+      shell: cmd
+      working-directory: ./
+      run: |
+        curl -k -L -s https://github.com/red-prig/fpPS4/archive/refs/heads/kern.zip -o kern.zip
+        unzip kern.zip
+
     - name: Hash
       shell: cmd
       working-directory: ./
-      run: echo '%GITHUB_SHA:~0,7%' > tag.inc
-
-    - name: Tag
-      shell: cmd
-      working-directory: ./
-      if: startsWith(github.ref, 'refs/tags/')
-      run: echo '%GITHUB_REF_NAME%' > tag.inc
+      run: echo 'fpps4_kern_build' > fpPS4-kern\tag.inc
 
     - name: Compile
       shell: cmd
       working-directory: ./
       run: |
-        lazbuild -B fpPS4.lpi > nul
-        strip fpPS4.exe
-
-    - name: Download
-      shell: cmd
-      working-directory: ./
-      run: |
-        curl -k -L -s https://github.com/red-prig/fpps4-bin/raw/main/ffmpeg.zip -o ffmpeg.zip
-        unzip ffmpeg.zip
+        lazbuild -B fpPS4-kern\tools\fp_rebase\fp_rebase.lpi
+        lazbuild -B fpPS4-kern\fpPS4.lpi
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -55,21 +43,5 @@ jobs:
       with:
         name: fpPS4
         path: |
-          fpPS4.exe
-          *.dll
+          fpPS4-kern\fpPS4.exe
         if-no-files-found: warn
-
-    - name: Pack
-      shell: cmd
-      working-directory: ./
-      if: startsWith(github.ref, 'refs/tags/')
-      run: |
-        mkdir sce_module
-        echo "Put libSceNgs2.prx and etc. here" > sce_module/info.txt
-        zip -9 -qq -r "fpPS4_%GITHUB_REF_NAME%.zip" "fpPS4.exe" "*.dll" "sce_module/info.txt"
-
-    - name: Release
-      uses: softprops/action-gh-release@v2
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: ./fpPS4_${{ github.ref_name }}.zip
